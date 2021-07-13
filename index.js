@@ -1,3 +1,4 @@
+const _ = require('lodash')
 
 const knex = require('knex')({
   client: 'mysql',
@@ -27,7 +28,6 @@ async function getStockBets() {
   }
 }
 
-
 async function withSymbol() {
   try {
     const stocks = await knex('stock_bets')
@@ -35,7 +35,7 @@ async function withSymbol() {
       .select({
         id: 'stock_bets.id',
         user_id:'stock_bets.user_id',
-       time_type: 'stock_bets.time_type',
+        time_type: 'stock_bets.time_type',
         amount: 'stock_bets.amount',
         bet_type: 'stock_bets.bet_type',
         round: 'stock_bets.round',
@@ -51,52 +51,104 @@ async function withSymbol() {
 }
 
 async function getSymbol() {
-  // const symbol = await knex('forex_symbols').where(knex.raw('id = ?', 2)).select('forex_symbols.table_name').first()
-  // const TABLE_NAME = symbol.table_name.toString()
-  // const TABLE_NAME = knex.raw('forex_symbols.table_name AS data')
-  // const symbolTable = knex('forex_symbols').where(knex.raw('summary_table_name = ?', symbol.summary_table_name)).select()
-    const stocks = await knex('stock_bets')
-      .leftJoin('forex_symbols', 'stock_bets.symbol_id', 'forex_symbols.id')
-      // .leftJoin(`'${forex_symbols.table_name}  AS tableName'`, 'forex_symbols.id', 'tableName.symbol_id')
-  //     .where(knex.raw(`JSON.OBJECT('forex_symbols.id = ?', 'stock_bets.symbol_id') as tableName`).toString())
-    // .leftJoin(TABLE_NAME.data, 'forex_symbols.id', `${TABLE_NAME.data}.id`)
-      // .leftJoin( await knex('forex_symbols').where(knex.raw('id = ?', 2)).select('forex_symbols.table_name').first())
-  // .select('tableName.c').first()
-      .select({
-        id: 'stock_bets.id',
-        user_id:'stock_bets.user_id',
-       time_type: 'stock_bets.time_type',
-        amount: 'stock_bets.amount',
-        bet_type: 'stock_bets.bet_type',
-        round: 'stock_bets.round',
-        symbol: knex.raw(`JSON_OBJECT(
+  const stocks = await knex('stock_bets')
+    .leftJoin('forex_symbols', 'stock_bets.symbol_id', 'forex_symbols.id')
+    .leftJoin({ summary_logs: '_stock_logs_summary'}, function () {
+      this.on('forex_symbols.id', 'summary_logs.symbol_id')
+        .andOn('stock_bets.round', 'summary_logs.round')
+    })
+    .select({
+      id: 'stock_bets.id',
+      user_id:'stock_bets.user_id',
+      time_type: 'stock_bets.time_type',
+      amount: 'stock_bets.amount',
+      bet_type: 'stock_bets.bet_type',
+      round: 'stock_bets.round',
+      symbol: knex.raw(`JSON_OBJECT(
         "id", forex_symbols.id,
-        "display", forex_symbols.display,
-        "table_name", forex_symbols.table_name
-        )`)
-        
-      })
+        "display", forex_symbols.display
+        )`), 
+      summary: knex.raw(`JSON_OBJECT(
+        "o", summary_logs.o,
+        "c", summary_logs.c,
+        "status", summary_logs.status,
+        "opened_at", summary_logs.opened_at,
+        "closed_at", summary_logs.closed_at
+      )`)        
+    })
   
-  const a = stocks.forEach( async element => {
-    const tableName = JSON.parse(element.symbol).table_name.toString()
-    const data = await knex(tableName)
-    console.log(data);
-  });
-
-  console.log(a);
-    // .first()
-  
-  // const summary = 
-  
-  // console.log(JSON.parse(stocks[0].symbol).table_name);
+  console.log(stocks);
 }
-//  let cashIn = await store.knex.raw(`SELECT *` +
-//       ` FROM users_transaction` +
-//       ` WHERE (user_id, updated_at) IN ` +
-//       `(SELECT user_id, MAX(updated_at) FROM users_transaction WHERE type_id=1 AND STATUS='C' AND user_id  IN (${uIds}) GROUP BY user_id)`)
+
+async function getLogs() {
+  const tableName = {
+    _stock_oanda_aud_chf: 'a',
+    _stock_oanda_eur_gbp: '_stock_oanda_eur_gbp',
+    _stock_oanda_spx_500_usd: '_stock_oanda_spx_500_usd',
+    _stock_oanda_xag_cad: 'stock_oanda_xag_cad',
+    _stock_oanda_xau_eur: '_stock_oanda_xau_eur'
+  }
+
+  const stocks = await knex('stock_bets')
+    .leftJoin('forex_symbols', 'stock_bets.symbol_id', 'forex_symbols.id')
+    .leftJoin({ summary_logs: '_stock_logs_summary' }, function () {
+      this.on('forex_symbols.id', 'summary_logs.symbol_id')
+        .andOn('stock_bets.round', 'summary_logs.round')
+    })
+    .whereIn('forex_symbols.table_name', _.keys(tableName))
+    .as('tableN')
+    .join('tableN', function () {
+      this.on('stock_bets.round', )
+    })
+  .limit(10)
+    // .modify(q => {
+    //   const data = q
+    //   console.log( data);
+
+    // })
+    // .select({
+      // table: table_name
+    // id: 'stock_bets.id',
+    // user_id:'stock_bets.user_id',
+    // time_type: 'stock_bets.time_type',
+    // amount: 'stock_bets.amount',
+    // bet_type: 'stock_bets.bet_type',
+    // round: 'stock_bets.round',
+    // symbol: knex.raw(`JSON_OBJECT(
+    //   "id", forex_symbols.id,
+    //   "display", forex_symbols.display
+    //   )`),
+    // summary: knex.raw(`JSON_OBJECT(
+    //   "o", summary_logs.o,
+    //   "c", summary_logs.c,
+    //   "status", summary_logs.status,
+    //   "opened_at", summary_logs.opened_at,
+    //   "closed_at", summary_logs.closed_at
+    //   )`)        
+    // })
+  // log: knex.raw(`JSON_OBJECT(
+  //     "id",
+  //     "h",
+  //     "l",
+  //     "c",
+  //     "v",
+  //     "t",
+  //     "is_result",
+  //     "round",
+  //     "expire_at",
+  //     "status"
+  //   )`)
+  
+  console.log(stocks)
+
+  // get the table name to join
+  // get time_type which is equivalent to column name
+  // get data where is_result(min) is true and min column value is equal to round value in stock_bet
+
+}
+
 // console.log(getStockBets());
-
-
 // console.log(withSymbol());
-console.log(getSymbol());
+// console.log(getSymbol());
+console.log(getLogs());
 
