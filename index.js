@@ -81,51 +81,126 @@ async function getSymbol() {
 }
 
 async function getLogs() {
-  const tableName = {
-    _stock_oanda_aud_chf: 'a',
-    _stock_oanda_eur_gbp: '_stock_oanda_eur_gbp',
-    _stock_oanda_spx_500_usd: '_stock_oanda_spx_500_usd',
-    _stock_oanda_xag_cad: 'stock_oanda_xag_cad',
-    _stock_oanda_xau_eur: '_stock_oanda_xau_eur'
-  }
-
-  const stocks = await knex('stock_bets')
+  let a
+  try {
+     const stocks = await knex('stock_bets')
     .leftJoin('forex_symbols', 'stock_bets.symbol_id', 'forex_symbols.id')
     .leftJoin({ summary_logs: '_stock_logs_summary' }, function () {
       this.on('forex_symbols.id', 'summary_logs.symbol_id')
         .andOn('stock_bets.round', 'summary_logs.round')
     })
-    .whereIn('forex_symbols.table_name', _.keys(tableName))
-    .as('tableN')
-    .join('tableN', function () {
-      this.on('stock_bets.round', )
+    .select({
+      id: 'stock_bets.id',
+      user_id: 'stock_bets.user_id',
+      time_type: 'stock_bets.time_type',
+      amount: 'stock_bets.amount',
+      bet_type: 'stock_bets.bet_type',
+      round: 'stock_bets.round',
+      symbol: knex.raw(`JSON_OBJECT(
+      "id", forex_symbols.id,
+      "display", forex_symbols.display
+      )`),
+      summary: knex.raw(`JSON_OBJECT(
+      "o", summary_logs.o,
+      "c", summary_logs.c,
+      "status", summary_logs.status,
+      "opened_at", summary_logs.opened_at,
+      "closed_at", summary_logs.closed_at
+      )`)
     })
-  .limit(10)
-    // .modify(q => {
-    //   const data = q
-    //   console.log( data);
+    .modify(knex => {
+      
+    })
+       
+      
+    // .modify(data => {
+    //   col = data.time_type
 
+    //   if (data.table_name === '_stock_oanda_aud_chf') {
+    //     data.join({tableName:'_stock_oanda_aud_chf'}, 'stock_bets.time_type', `tableName.${col}`)
+    //   }
+
+    //   if (data.table_name === '_stock_oanda_eur_gbp') {
+    //     data.join({tableName:'_stock_oanda_eur_gbp'}, 'stock_bets.time_type', `tableName.${col}`)
+    //   }
+
+    //   if (data.table_name === '_stock_oanda_spx_500_usd') {
+    //     data.join({ tableName: '_stock_oanda_spx_500_usd' }, 'stock_bets.time_type', `tableName.${col}`)
+    //   }
+
+      
+    // })
+    
+       
+
+  
+       
+       
+    
+    // .modify(knex => {
+    //   const col = knex.time_type
+    //   switch (knex.table_name) {
+    //     case '_stock_oanda_aud_chf':
+    //       knex.leftJoin('_stock_oanda_aud_chf', 'stock_bets.time_type', `tableName.${col}`)
+    //     case '_stock_oanda_eur_gbp':
+    //       knex.leftJoin('_stock_oanda_eur_gbp', 'stock_bets.time_type', `tableName.${col}`)
+    //     case '_stock_oanda_spx_500_usd':
+    //         knex.leftJoin('_stock_oanda_spx_500_usd', 'stock_bets.time_type', `tableName.${col}`)
+    //     case '_stock_oanda_xag_cad':
+    //       knex.leftJoin('_stock_oanda_xag_cad', 'stock_bets.time_type', `tableName.${col}`)
+    //     case '_stock_oanda_xau_eur':
+    //       knex.leftJoin('_stock_oanda_xau_eur', 'stock_bets.time_type', `tableName.${col}`)
+    //   }    
     // })
     // .select({
-      // table: table_name
-    // id: 'stock_bets.id',
-    // user_id:'stock_bets.user_id',
-    // time_type: 'stock_bets.time_type',
-    // amount: 'stock_bets.amount',
-    // bet_type: 'stock_bets.bet_type',
-    // round: 'stock_bets.round',
-    // symbol: knex.raw(`JSON_OBJECT(
-    //   "id", forex_symbols.id,
-    //   "display", forex_symbols.display
-    //   )`),
-    // summary: knex.raw(`JSON_OBJECT(
-    //   "o", summary_logs.o,
-    //   "c", summary_logs.c,
-    //   "status", summary_logs.status,
-    //   "opened_at", summary_logs.opened_at,
-    //   "closed_at", summary_logs.closed_at
-    //   )`)        
+    //   id: 'stock_bets.id',
+    //   user_id:'stock_bets.user_id',
+    //   time_type: 'stock_bets.time_type',
+    //   amount: 'stock_bets.amount',
+    //   bet_type: 'stock_bets.bet_type',
+    //   valueround:  `tableName.${col}`
     // })
+      .limit(10)
+    
+
+    console.log(a);
+    
+
+  } catch (error) {
+    console.log(error);
+  }
+ 
+    // .select({
+    //   id: 'stock_bets.id',
+    //   user_id:'stock_bets.user_id',
+    //   time_type: 'stock_bets.time_type',
+    //   amount: 'stock_bets.amount',
+    //   bet_type: 'stock_bets.bet_type',
+    //   round: 'stock_bets.round',
+    //   symbol: knex.raw(`JSON_OBJECT(
+    //     "id", forex_symbols.id,
+    //     "display", forex_symbols.display
+    //     )`),
+    //   summary: knex.raw(`JSON_OBJECT(
+    //     "o", summary_logs.o,
+    //     "c", summary_logs.c,
+    //     "status", summary_logs.status,
+    //     "opened_at", summary_logs.opened_at,
+    //     "closed_at", summary_logs.closed_at
+    //     )`)        
+    // })
+  
+
+    
+  //   switch (stocks[i].table_name.toString()) {
+  //     case "_stock_oanda_xau_eur":
+        
+  //       break;
+    
+  //     default:
+  //       break;
+  //   }
+  // }
   // log: knex.raw(`JSON_OBJECT(
   //     "id",
   //     "h",
@@ -139,7 +214,6 @@ async function getLogs() {
   //     "status"
   //   )`)
   
-  console.log(stocks)
 
   // get the table name to join
   // get time_type which is equivalent to column name
@@ -151,4 +225,6 @@ async function getLogs() {
 // console.log(withSymbol());
 // console.log(getSymbol());
 console.log(getLogs());
+
+
 
