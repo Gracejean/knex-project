@@ -81,14 +81,50 @@ async function getSymbol() {
 }
 
 async function getLogs() {
-  try {   
-    const time =  knex.raw('SELECT time_type as t_type FROM `stock_bets`')
+  try {
+    // const time =  knex.raw('SELECT time_type as t_type FROM stock_bets')
+    const data = knex.raw(`SELECT * FROM _stock_forex_401484347
+    WHERE is_result_1min = 1
+      OR is_result_3min = 1
+      OR is_result_5min = 1
+    UNION
+    SELECT * FROM  _stock_oanda_aud_usd 
+    WHERE is_result_1min = 1 
+      OR is_result_3min = 1 
+      OR is_result_5min = 1 
+    UNION
+    SELECT * FROM _stock_oanda_eur_usd 
+    WHERE is_result_1min = 1 
+      OR is_result_3min = 1 
+      OR is_result_5min = 1 
+    UNION
+    SELECT * FROM _stock_oanda_gbp_usd 
+    WHERE is_result_1min = 1 
+    OR is_result_3min = 1 
+    OR is_result_5min = 1 
+    UNION
+    SELECT * FROM _stock_oanda_spx_500_usd 
+    WHERE is_result_1min = 1 
+      OR is_result_3min = 1 
+      OR is_result_5min = 1 
+    UNION
+    SELECT * FROM _stock_oanda_usd_cad 
+    WHERE is_result_1min = 1 
+      OR is_result_3min = 1 
+      OR is_result_5min = 1 
+    UNION
+    SELECT * FROM _stock_oanda_usd_jpy 
+    WHERE is_result_1min = 1 
+      OR is_result_3min = 1 
+      OR is_result_5min = 1 `)
     const stocks = await knex('stock_bets')
-    .leftJoin({forex: 'forex_symbols'}, 'stock_bets.symbol_id', 'forex.id')
+    .leftJoin('forex_symbols', 'stock_bets.symbol_id', 'forex_symbols.id')
     .leftJoin({ summary_logs: '_stock_logs_summary' }, function () {
-      this.on('forex.id', 'summary_logs.symbol_id')
+      this.on('forex_symbols.id', 'summary_logs.symbol_id')
         .andOn('stock_bets.round', 'summary_logs.round')
-    })     
+    })
+    .leftJoin({ logs: `${data}`}, '_stock_logs_summary.c', 'logs.c')
+    // .leftJo in({tableName: knex.raw(`JSON_OBJECT("table_name", forex_symbols.table_name)`)}, 'stock_bets.time_type', `tableName.${time}`)  
     .select({
       id: 'stock_bets.id',
       user_id:'stock_bets.user_id',
@@ -106,15 +142,9 @@ async function getLogs() {
         "status", summary_logs.status,
         "opened_at", summary_logs.opened_at,
         "closed_at", summary_logs.closed_at
-        )`),
-      log: knex({table: 'forex_symbols.table_name'}).select(
-        knex.raw(`JSON_OBJECT(
-          "id", table.id,
-          "h", table.h,
-          "l", table.l
         )`)
-      )
     })
+    .limit(5)
       // .where()
       // .leftJoin({tableName: knex.raw(`forex.table_name`)}, 'stock_bets.time_type', 'tableName.1min')
         // function () {
@@ -127,36 +157,53 @@ async function getLogs() {
     // const  data = await stocks
     
     // for (let i = 0; i < data.length; i++) {
+    //   console.log(JSON.parse(data[i].symbol).id);
     //   const col = data[i].time_type
     //   if (data[i].table_name === '_stock_oanda_aud_usd') {
-    //     stocks = stocks.join({stock_aud:'_stock_oanda_aud_usd'}, 'stock_bets.time_type', `stock_aud.${col}`)
+    //     // logs = stocks.join({ stock_aud: '_stock_oanda_aud_usd' }, 'stock_bets.time_type', `stock_aud.${col}`)
+    //     logs = await knex({ stock_aud: '_stock_oanda_aud_usd' })
+    //       .where(`stock_aud.${col}`, col)
+    //       .select('id', 'l')
+    //       .first()
     //   }
 
     //   if (data[i].table_name === '_stock_oanda_eur_usd') {
-    //     stocks = stocks.join({stock_eur:'_stock_oanda_eur_usd'}, 'stock_bets.time_type', `stock_eur.${col}`)
+    //     // stocks = stocks.join({stock_eur:'_stock_oanda_eur_usd'}, 'stock_bets.time_type', `stock_eur.${col}`)
+    //     logs = await knex({ stock_eur: '_stock_oanda_eur_usd' })
+    //       .where(`stock_eur.${col}`, col)
+    //       .select('id', 'l')
+    //     .first()
     //   }
 
     //   if (data[i].table_name === '_stock_oanda_spx_500_usd') {
-    //     stocks = stocks.join({ stock_spx: '_stock_oanda_spx_500_usd' }, 'stock_bets.time_type', `stock_spx.${col}`)
+    //     // stocks = stocks.join({ stock_spx: '_stock_oanda_spx_500_usd' }, 'stock_bets.time_type', `stock_spx.${col}`)
+    //     logs = await knex({ stock_spx: '_stock_oanda_spx_500_usd' })
+    //       .where(`stock_spx.${col}`, col)
+    //      .select('id', 'l')
+    //     .first()
+        
     //   }
 
     //   if (data[i].table_name === '_stock_oanda_gbp_usd') {
-    //     stocks = stocks.join({ stock_gbp: '_stock_oanda_gbp_usd' }, 'stock_bets.time_type', `stock_gbp.${col}`)
+    //     // stocks = stocks.join({ stock_gbp: '_stock_oanda_gbp_usd' }, 'stock_bets.time_type', `stock_gbp.${col}`)
+    //     logs = await knex({ stock_gbp: '_stock_oanda_gbp_usd' })
+    //       .where(`stock_gbp.${col}`, col)
+    //      .select('id', 'l')
+    //     .first()
     //   }
 
     //   if (data[i].table_name === '_stock_oanda_usd_cad') {
-    //     stocks = stocks.join({ stock_cad: '_stock_oanda_usd_cad' }, 'stock_bets.time_type', `stock_cad.${col}`)
-    //       .select({
-    //       h:'stock_cad.h'
-    //     })  
+    //     // stocks = stocks.join({ stock_cad: '_stock_oanda_usd_cad' }, 'stock_bets.time_type', `stock_cad.${col}`)
+    //     logs = await knex({ stock_cad: '_stock_oanda_usd_cad' })
+    //     .where(`stock_cad.${col}`, col)  
+    //      .select('id', 'l')
+    //       .first()
+        
     //   }
-    
-    //   if (data[i].table_name === '_stock_oanda_usd_jpy') {
-    //   stocks = stocks.join({ stock_jpy: '_stock_oanda_usd_jpy'}, 'stock_bets.time_type', `stock_jpy.${col}`)
-    //   }
-    // }
-   
 
+    // }
+
+   
     console.log(stocks);
     
 
