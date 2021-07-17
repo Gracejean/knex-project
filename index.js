@@ -129,7 +129,7 @@ async function getLogs() {
         "opened_at", summary_logs.opened_at,
         "closed_at", summary_logs.closed_at
         )`),
-        logs: knex.raw(`JSON_OBJECT(
+      logs: knex.raw(`JSON_OBJECT(
         "id", logs_table.id,
         "h", logs_table.h,
         "l", logs_table.l,
