@@ -1,3 +1,4 @@
+const { Knex } = require('knex');
 const _ = require('lodash')
 
 const knex = require('knex')({
@@ -85,7 +86,16 @@ async function getLogs() {
     const round = knex.raw(`CASE WHEN stock_bets.round = logs_table.1min THEN logs_table.1min WHEN stock_bets.round = logs_table.3min THEN logs_table.3min ELSE logs_table.5min END`)
     const expired = knex.raw(`CASE WHEN summary_logs.closed_at = logs_table.expire_at_1min THEN logs_table.expire_at_1min WHEN summary_logs.closed_at = logs_table.expire_at_3min THEN logs_table.expire_at_3min ELSE logs_table.expire_at_5min END`)
     const status = knex.raw(`CASE WHEN stock_bets.status = logs_table.status_1min THEN logs_table.status_1min WHEN stock_bets.status = logs_table.3min THEN logs_table.3min ELSE logs_table.5min END`)
-    const tableList = [
+    // const tableList = {
+    //   _stock_oanda_aud_usd: '_stock_oanda_aud_usd',
+    //   _stock_oanda_eur_usd: '_stock_oanda_eur_usd',
+    //   _stock_oanda_gbp_usd: '_stock_oanda_gbp_usd',
+    //   _stock_oanda_spx_500_usd: '_stock_oanda_spx_500_usd',
+    //   _stock_oanda_usd_cad: '_stock_oanda_usd_cad',
+    //   _stock_oanda_usd_jpy: '_stock_oanda_usd_jpy'
+    // }
+    
+      const tableList = [
       '_stock_oanda_aud_usd',
       '_stock_oanda_eur_usd',
       '_stock_oanda_gbp_usd',
@@ -93,28 +103,28 @@ async function getLogs() {
       '_stock_oanda_usd_cad',
       '_stock_oanda_usd_jpy'
     ]
+    
+    let data
 
-    const table = knex.select('*').from('_stock_forex_401484347')
-      .where(function () {
-        this.where('is_result_1min', 1)
-          .orWhere('is_result_3min', 1)
-          .orWhere('is_result_5min', 1)
-      }).union(
-        knex.raw(`SELECT * FROM ${tableList} WHERE ${tableList}.is_result_1min = 1 OR ${tableList}.is_result_3min = 1 OR ${tableList}.is_result_5min = 1 `),
-        
-        // knex.raw('SELECT * FROM _stock_oanda_eur_usd WHERE is_result_1min = 1 OR is_result_3min = 1 OR is_result_5min = 1 '),
-        // knex.raw('SELECT * FROM _stock_oanda_gbp_usd WHERE is_result_1min = 1 OR is_result_3min = 1 OR is_result_5min = 1 '),
-        // knex.raw('SELECT * FROM _stock_oanda_spx_500_usd WHERE is_result_1min = 1 OR is_result_3min = 1 OR is_result_5min = 1 '),
-        // knex.raw('SELECT * FROM _stock_oanda_usd_cad WHERE is_result_1min = 1 OR is_result_3min = 1 OR is_result_5min = 1 '),
-        // knex.raw('SELECT * FROM _stock_oanda_usd_jpy WHERE is_result_1min = 1 OR is_result_3min = 1 OR is_result_5min = 1')
-    )
+    let query =  `(SELECT * FROM _stock_forex_401484347 WHERE is_result_1min = 1 OR is_result_3min = 1 OR is_result_5min = 1) table1 UNION`
+
+    for (let i = 0; i < tableList.length; i++) {
+
+      if (i !== 0) {
+        query += "UNION" 
+      }
+      query += ` (SELECT * FROM ${tableList[i]} WHERE is_result_1min = 1 OR is_result_3min = 1 OR is_result_5min = 1) table${tableList[i]}`
+    }
+    // console.log(await knex.raw(query));  
+
+//     console.log(table);
     
     const stocks = await knex('stock_bets')
     .leftJoin('forex_symbols', 'stock_bets.symbol_id', 'forex_symbols.id')
-    .leftJoin({ summary_logs: '_stock_logs_summary' }, function () {
+    .leftJoin({ summary_logs: '_stock_logs_summary' }, function () {  
       this.on('forex_symbols.id', 'summary_logs.symbol_id')
         .andOn('stock_bets.round', 'summary_logs.round')
-    }).leftJoin({logs_table: table}, function () {
+    }).leftJoin({logs_table: knex.raw(query)}, function () {
       this.on('logs_table.symbol_id', 'summary_logs.symbol_id')
         .andOn('logs_table.c', 'summary_logs.c')
         .andOn(function () {
@@ -154,6 +164,7 @@ async function getLogs() {
         "status", ${status}
       )`)
     })
+    .limit(5)
 
     console.log(stocks)   
   } catch (error) {
@@ -168,3 +179,53 @@ console.log(getLogs());
 
 
 
+
+      const table = await knex.select('*').from('_stock_forex_401484347')
+      .where(function () {
+        this.where('is_result_1min', 1)
+          .orWhere('is_result_3min', 1)
+          .orWhere('is_result_5min', 1)
+      })
+      .union(function () {
+        this.select('*')
+        for (let i = 0; i < tableList.length; i++) {
+          this.from(tableList[i])
+           .where(function () {
+            this.where('is_result_1min', 1)
+              .orWhere('is_result_3min', 1)
+              .orWhere('is_result_5min', 1)
+            })         
+        }
+      })
+
+          
+    // for (let i = 0; i < tableList.length; i++) {
+    //   data = await knex.select('*').from('_stock_forex_401484347')
+    //     .where(function () {
+    //       this.where('is_result_1min', 1)
+    //         .orWhere('is_result_3min', 1)
+    //         .orWhere('is_result_5min', 1)
+    //   })
+    //     .union(knex.raw(`SELECT * FROM ${tableList[i]}  WHERE is_result_1min = 1 OR is_result_3min = 1 OR is_result_5min = 1`)
+    //     )    
+    // }
+
+    // console.log(data);
+
+
+  //   const table = await knex.select('*').from('_stock_forex_401484347')
+  //     .where(function () {
+  //       this.where('is_result_1min', 1)
+  //         .orWhere('is_result_3min', 1)
+  //         .orWhere('is_result_5min', 1)
+  // })
+  //     .union(
+  //       knex.raw('SELECT * FROM _stock_oanda_aud_usd WHERE is_result_1min = 1 OR is_result_3min = 1 OR is_result_5min = 1 '),
+  //       knex.raw('SELECT * FROM _stock_oanda_eur_usd WHERE is_result_1min = 1 OR is_result_3min = 1 OR is_result_5min = 1 '),
+  //       knex.raw('SELECT * FROM _stock_oanda_gbp_usd WHERE is_result_1min = 1 OR is_result_3min = 1 OR is_result_5min = 1 '),
+  //       knex.raw('SELECT * FROM _stock_oanda_spx_500_usd WHERE is_result_1min = 1 OR is_result_3min = 1 OR is_result_5min = 1 '),
+  //       knex.raw('SELECT * FROM _stock_oanda_usd_cad WHERE is_result_1min = 1 OR is_result_3min = 1 OR is_result_5min = 1 '),
+  //       knex.raw('SELECT * FROM _stock_oanda_usd_jpy WHERE is_result_1min = 1 OR is_result_3min = 1 OR is_result_5min = 1')
+  //   )
+
+  //   console.log(table);
