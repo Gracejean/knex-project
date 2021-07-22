@@ -96,6 +96,14 @@ async function getLogs() {
       '_stock_oanda_usd_jpy'
     ]
 
+    const jsonObject = data => {
+      const item = Object.keys(data)
+        .reduce((acc, current) => [...acc, `"${current}", ${data[current]}`], [])
+        .join(', ')
+      
+      return `JSON_OBJECT(${item})`
+    }
+
     const table = knex.select('*').from('_stock_forex_401484347')
       .where(function () {
         this.where('is_result_1min', 1)
@@ -105,7 +113,7 @@ async function getLogs() {
       .union(function () {
         for (let i = 0; i < tableList.length; i++) {
           this.union(function(){
-            this.select('*').table(`${tableList[i]}`)
+            this.table(`${tableList[i]}`)
             .where(function () {
               this.where('is_result_1min', 1)
                 .orWhere('is_result_3min', 1)
@@ -136,47 +144,38 @@ async function getLogs() {
         amount: 'stock_bets.amount',
         bet_type: 'stock_bets.bet_type',
         round: 'stock_bets.round',
-        symbol: knex.raw(`JSON_OBJECT(  
-          "id", forex_symbols.id,
-          "display", forex_symbols.display
-          )`),
-        summary: knex.raw(`JSON_OBJECT(
-          "o", summary_logs.o,
-          "c", summary_logs.c,
-          "status", summary_logs.status,
-          "opened_at", summary_logs.opened_at,
-          "closed_a t", summary_logs.closed_at
-          )`),
-        logs: knex.raw(`JSON_OBJECT(
-          "id", logs_table.id,
-          "h", logs_table.h,
-          "l", logs_table.l,
-          "c", logs_table.c,
-          "v", logs_table.v,
-          "t", logs_table.t,
-          "round",${round},
-          "expire_at", ${expired},
-          "status", ${status}
-        )`)
-      })
-    
-    const jsonObject = ({ item, data }) => {
-      
-    }
-    
+        symbol: knex.raw(jsonObject({
+          id: 'forex_symbols.id',
+          display: 'forex_symbols.display'
+        })),
+        summary: knex.raw(jsonObject({
+          o: 'summary_logs.o',
+          c: 'summary_logs.c',
+          status: 'summary_logs.status',
+          opened_at: 'summary_logs.opened_at',
+          closed_at: 'summary_logs.closed_at'
+        })),
+        logs: knex.raw(jsonObject({
+          id: 'logs_table.id',
+          h: 'logs_table.h',
+          l: 'logs_table.l',
+          c: 'logs_table.c',
+          v: 'logs_table.v',
+          t: 'logs_table.t',
+          round: `${round}`,
+          expire_at: `${expired}`,
+          status: `${status}`
+        }))
+      })    
+ 
     console.log(stocks)
   } catch (error) {
     console.log(error);
   }
 }
 
-
-
 // console.log(getStockBets());
 // console.log(withSymbol());
 // console.log(getSymbol());
 console.log(getLogs());
-
-
-
 
