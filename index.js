@@ -1,6 +1,3 @@
-const { Knex } = require('knex');
-const _ = require('lodash')
-
 const knex = require('knex')({
   client: 'mysql',
   connection: {
