@@ -8,6 +8,14 @@ const knex = require('knex')({
   }
 });
 
+const jsonObject = data => {
+  const item = Object.keys(data)
+    .reduce((acc, current) => [...acc, `"${current}", ${data[current]}`], [])
+    .join(', ')
+  
+  return `JSON_OBJECT(${item})`
+}
+
 async function getStockBets() {
   try {
     const stocks = await knex('stock_bets')
@@ -93,13 +101,6 @@ async function getLogs() {
       '_stock_oanda_usd_jpy'
     ]
 
-    const jsonObject = data => {
-      const item = Object.keys(data)
-        .reduce((acc, current) => [...acc, `"${current}", ${data[current]}`], [])
-        .join(', ')
-      
-      return `JSON_OBJECT(${item})`
-    }
 
     const table = knex.select('*').from('_stock_forex_401484347')
       .where(function () {
@@ -171,8 +172,96 @@ async function getLogs() {
   }
 }
 
+async function getBets() {
+  try {
+
+    const round = knex.raw(`CASE WHEN stock_bets.round = logs_table.1min THEN logs_table.1min WHEN stock_bets.round = logs_table.3min THEN logs_table.3min ELSE logs_table.5min END`)
+    const expired = knex.raw(`CASE WHEN summary_logs.closed_at = logs_table.expire_at_1min THEN logs_table.expire_at_1min WHEN summary_logs.closed_at = logs_table.expire_at_3min THEN logs_table.expire_at_3min ELSE logs_table.expire_at_5min END`)
+    const status = knex.raw(`CASE WHEN stock_bets.status = logs_table.status_1min THEN logs_table.status_1min WHEN stock_bets.status = logs_table.3min THEN logs_table.3min ELSE logs_table.5min END`)
+    
+    const tableList = [
+      '_stock_oanda_aud_usd',
+      '_stock_oanda_eur_usd',
+      '_stock_oanda_gbp_usd',
+      '_stock_oanda_spx_500_usd',
+      '_stock_oanda_usd_cad',
+      '_stock_oanda_usd_jpy'
+    ]
+
+
+    const table = knex.select('*').from('_stock_forex_401484347')
+      .where(function () {
+        this.where('is_result_1min', 1)
+          .orWhere('is_result_3min', 1)
+          .orWhere('is_result_5min', 1)
+      })
+      .union(function () {
+        for (let i = 0; i < tableList.length; i++) {
+          this.union(function(){
+            this.table(`${tableList[i]}`)
+            .where(function () {
+              this.where('is_result_1min', 1)
+                .orWhere('is_result_3min', 1)
+                .orWhere('is_result_5min', 1)
+            })  
+          })
+        }       
+      })
+    
+    const bets = await knex('stock_bets')
+      .leftJoin('forex_symbols', 'stock_bets.symbol_id', 'forex_symbols.id')
+        .leftJoin({ summary_logs: '_stock_logs_summary' }, function () {  
+          this.on('forex_symbols.id', 'summary_logs.symbol_id')
+            .andOn('stock_bets.round', 'summary_logs.round')
+        }).leftJoin({logs_table: table}, function () {
+          this.on('logs_table.symbol_id', 'summary_logs.symbol_id')
+            .andOn('logs_table.c', 'summary_logs.c')
+            .andOn(function () {
+              this.on('logs_table.1min', 'summary_logs.round')
+                .orOn('logs_table.3min', 'summary_logs.round')
+                .orOn('logs_table.5min', 'summary_logs.round')
+            })
+        })
+      .select({
+          logs_id: 'stock_bets.log_id',
+          user_id:'stock_bets.user_id',
+          time_type: 'stock_bets.time_type',
+          bet_type: 'stock_bets.bet_type',
+          round: 'stock_bets.round',
+          symbol: knex.raw(jsonObject({
+            id: 'forex_symbols.id',
+            display: 'forex_symbols.display'
+          })),
+          summary: knex.raw(jsonObject({
+            o: 'summary_logs.o',
+            c: 'summary_logs.c',
+            status: 'summary_logs.status',
+            opened_at: 'summary_logs.opened_at',
+            closed_at: 'summary_logs.closed_at'
+          })),
+          logs: knex.raw(jsonObject({
+            id: 'logs_table.id',
+            h: 'logs_table.h',
+            l: 'logs_table.l',
+            c: 'logs_table.c',
+            v: 'logs_table.v',
+            t: 'logs_table.t',
+            round: `${round}`,
+            expire_at: `${expired}`,
+            status: `${status}`
+          }))
+        })
+    
+    console.log(bets);
+  } catch (error) {
+    console.log(error);
+  }
+}
+
 // console.log(getStockBets());
 // console.log(withSymbol());
 // console.log(getSymbol());
-console.log(getLogs());
+// console.log(getLogs());
+console.log(getBets());
+
 
