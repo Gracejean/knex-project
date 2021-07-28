@@ -1,3 +1,5 @@
+const { Knex } = require('knex');
+
 const knex = require('knex')({
   client: 'mysql',
   connection: {
@@ -178,9 +180,8 @@ async function getBets() {
     const round = knex.raw(`CASE WHEN stock_bets.round = logs_table.1min THEN logs_table.1min WHEN stock_bets.round = logs_table.3min THEN logs_table.3min ELSE logs_table.5min END`) 
     const expired = knex.raw(`CASE WHEN summary_logs.closed_at = logs_table.expire_at_1min THEN logs_table.expire_at_1min WHEN summary_logs.closed_at = logs_table.expire_at_3min THEN logs_table.expire_at_3min ELSE logs_table.expire_at_5min END`)
     const status = knex.raw(`CASE WHEN stock_bets.status = logs_table.status_1min THEN logs_table.status_1min WHEN stock_bets.status = logs_table.3min THEN logs_table.3min ELSE logs_table.5min END`)
-    const user = knex.raw('GROUP_CONCAT(stock_bets.user_id) AS user_id GROUP BY stock_bets.log_id')
-    const count = knex.raw(`COUNT(${user})`)
-    
+    const user = knex.raw('GROUP_CONCAT(DISTINCT stock_bets.user_id)')
+
     const tableList = [
       '_stock_oanda_aud_usd',
       '_stock_oanda_eur_usd',
@@ -210,58 +211,57 @@ async function getBets() {
       })
     
     const bets = await knex('stock_bets')
-      .select('stock_bets.log_id', 
-        knex.raw(user)
-        
-
-    )
-    // .select({
-    //   'logs_id': 'stock_bets.log_id',
-    //   'user_id': knex.raw(`${user}`),
-    //   })
-      // .leftJoin('forex_symbols', 'stock_bets.symbol_id', 'forex_symbols.id')
-      //   .leftJoin({ summary_logs: '_stock_logs_summary' }, function () {  
-      //     this.on('forex_symbols.id', 'summary_logs.symbol_id')
-      //       .andOn('stock_bets.round', 'summary_logs.round')
-      //   }).leftJoin({logs_table: table}, function () {
-      //     this.on('logs_table.symbol_id', 'summary_logs.symbol_id')
-      //       .andOn('logs_table.c', 'summary_logs.c')
-      //       .andOn(function () {
-      //         this.on('logs_table.1min', 'summary_logs.round')
-      //           .orOn('logs_table.3min', 'summary_logs.round')
-      //           .orOn('logs_table.5min', 'summary_logs.round')
-      //       })
-      //   })
-    // .toSQL()
-      // .select({
-      //     logs_id: 'stock_bets.log_id',
-      //     user_id:'stock_bets.user_id',
-      //     time_type: 'stock_bets.time_type',
-      //     bet_type: 'stock_bets.bet_type',
-      //     round: 'stock_bets.round',
-      //     symbol: knex.raw(jsonObject({
-      //       id: 'forex_symbols.id',
-      //       display: 'forex_symbols.display'
-      //     })),
-      //     summary: knex.raw(jsonObject({
-      //       o: 'summary_logs.o',
-      //       c: 'summary_logs.c',
-      //       status: 'summary_logs.status',
-      //       opened_at: 'summary_logs.opened_at',
-      //       closed_at: 'summary_logs.closed_at'
-      //     })),
-      //     logs: knex.raw(jsonObject({
-      //       id: 'logs_table.id',
-      //       h: 'logs_table.h',
-      //       l: 'logs_table.l',
-      //       c: 'logs_table.c',
-      //       v: 'logs_table.v',
-      //       t: 'logs_table.t',
-      //       round: `${round}`,
-      //       expire_at: `${expired}`,
-      //       status: `${status}`
-      //     }))
-      //   })
+      .leftJoin('forex_symbols', 'stock_bets.symbol_id', 'forex_symbols.id')
+      .leftJoin({ summary_logs: '_stock_logs_summary' }, function () {  
+          this.on('forex_symbols.id', 'summary_logs.symbol_id')
+            .andOn('stock_bets.round', 'summary_logs.round')
+      })
+      .leftJoin({logs_table: table}, function () {
+        this.on('logs_table.symbol_id', 'summary_logs.symbol_id')
+          .andOn('logs_table.c', 'summary_logs.c')
+          .andOn(function () {
+            this.on('logs_table.1min', 'summary_logs.round')
+              .orOn('logs_table.3min', 'summary_logs.round')
+              .orOn('logs_table.5min', 'summary_logs.round')
+          })
+      })
+      .groupBy('stock_bets.log_id')
+      .select({
+        log_id: 'stock_bets.log_id',
+        user_id: knex.raw(`JSON_ARRAYAGG(stock_bets.user_id)`),
+        total_users: knex.raw(`COUNT(stock_bets.user_id)`),
+        total_bets_count: knex.raw(jsonObject({
+          hi: `SUM(stock_bets.bet_type = 'hi')`,
+          lo: `SUM(stock_bets.bet_type = 'lo')`
+          })),
+        total_bets: knex.raw(jsonObject({
+          hi: `CASE WHEN min(stock_bets.bet_type) = 'hi' THEN SUM(stock_bets.amount) ELSE 0 END`,
+          lo: `CASE WHEN min(stock_bets.bet_type) = 'lo' THEN SUM(stock_bets.amount) ELSE 0 END`,
+        })),
+        time_type: knex.raw('min(stock_bets.time_type)'),
+        symbol: knex.raw(jsonObject({
+          id: 'min(forex_symbols.id)',
+          display: 'min(forex_symbols.display)'
+        })),
+        summary: knex.raw(jsonObject({
+          o: 'min(summary_logs.o)',
+          c: 'min(summary_logs.c)',
+          status: 'min(summary_logs.status)',
+          opened_at: 'min(summary_logs.opened_at)',
+          closed_at: 'min(summary_logs.closed_at)'
+        })),
+        logs: knex.raw(jsonObject({
+          id: 'min(logs_table.id)',
+          h: 'min(logs_table.h)',
+          l: 'min(logs_table.l)',
+          c: 'min(logs_table.c)',
+          v: 'min(logs_table.v)',
+          t: 'min(logs_table.t)',
+          round: `min(${round})`,
+          expire_at: `min(${expired})`,
+          status: `min(${status})`
+        }))
+      })
     
     console.log(bets);
   } catch (error) {
@@ -272,7 +272,7 @@ async function getBets() {
 // console.log(getStockBets());
 // console.log(withSymbol());
 // console.log(getSymbol());
-console.log(getLogs());
-// console.log(getBets());
+// console.log(getLogs());
+console.log(getBets());
 
 
