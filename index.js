@@ -187,13 +187,12 @@ async function getBets() {
       '_stock_oanda_usd_jpy'
     ]
 
-    const table = knex.select('*').from({ stock40: '_stock_forex_401484347' })
+    const table = knex.select('*').from('_stock_forex_401484347')
       .where(function () {
         this.where('is_result_1min', 1)
           .orWhere('is_result_3min', 1)
           .orWhere('is_result_5min', 1)        
       })
-      .groupBy('symbol_id', 'id')
       .union(function () {
         for (let i = 0; i < tableList.length; i++) {
           this.union(function(){
@@ -205,7 +204,7 @@ async function getBets() {
             })
           })          
         }       
-      })    
+      })
 
     const bets = await knex('stock_bets')
       .leftJoin('forex_symbols', 'stock_bets.symbol_id', 'forex_symbols.id')
@@ -224,7 +223,6 @@ async function getBets() {
       })
       .groupBy('stock_bets.log_id',
         'stock_bets.id',
-        'forex_symbols.id',
         'summary_logs.id',
         'logs_table.id',
         'logs_table.h',
@@ -251,8 +249,8 @@ async function getBets() {
           lo: `SUM(stock_bets.bet_type = 'lo')`
           })),
         total_bets: knex.raw(jsonObject({
-          hi: `CASE WHEN min(stock_bets.bet_type) = 'hi' THEN SUM(stock_bets.amount) ELSE 0 END`,
-          lo: `CASE WHEN min(stock_bets.bet_type) = 'lo' THEN SUM(stock_bets.amount) ELSE 0 END`,
+          hi: `CASE WHEN stock_bets.bet_type = 'hi' THEN SUM(stock_bets.amount) ELSE 0 END`,
+          lo: `CASE WHEN stock_bets.bet_type = 'lo' THEN SUM(stock_bets.amount) ELSE 0 END`,
         })),
         time_type: 'stock_bets.time_type',
         symbol: knex.raw(jsonObject({
@@ -265,6 +263,12 @@ async function getBets() {
           status: 'summary_logs.status',
           opened_at: 'summary_logs.opened_at',
           closed_at: 'summary_logs.closed_at'
+        })),
+        logs: knex.raw(jsonObject({
+          id: 'logs_table.id',
+          h: 'logs_table.h',
+          l: 'logs_table.l',
+          c: 'logs_table.c'
         })),
         logs: knex.raw(jsonObject({
           id: 'logs_table.id',
