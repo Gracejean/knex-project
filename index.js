@@ -159,9 +159,9 @@ async function getLogs() {
           c: 'logs_table.c',
           v: 'logs_table.v',
           t: 'logs_table.t',
-          round: `${round}`,
-          expire_at: `${expired}`,
-          status: `${status}`
+          round: round,
+          expire_at: expired,
+          status: status
         }))
       })    
  
