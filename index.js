@@ -285,39 +285,30 @@ async function getBets() {
 async function updateUser() {
   try {
     const userList = [
-      { id: 1, login_id:'user_id_11', ext: 'php1' },
-      { id: 2, login_id:'user_id_21', ext: 'asp1' },
-      { id: 3, login_id:'user_id_31', ext: 'xml1' },
-      { id: 4, login_id:'user_id_41', ext: 'php1' },
-      { id: 6, login_id:'user_id_61', ext: 'asp1'}
-    ]  
+      { id: 1, login_id:'user_id_1', ext: 'php' },
+      { id: 2, login_id:'user_id_2', ext: 'asp' },
+      { id: 3, login_id:'user_id_3', ext: 'xml' },
+      { id: 4, login_id:'user_id_4', ext: 'php' },
+      { id: 6, login_id:'user_id_6', ext: 'asp'}
+    ]      
     
-    
-    const users = await knex.transaction(trx => {
-      const data = userList.map(async user => {
-        await knex('users')
+    await knex.transaction(async trx => {
+      const data = []
+
+      userList.forEach(user => {
+        const query = knex('users')
           .where('id', user.id)
           .update({
             'login_id': user.login_id,
             'ext': user.ext
           })
-        .transacting(trx)
+          .transacting(trx)
+        data.push(query)
       })
+      
+      await Promise.all(data)
 
-      return data
-    })    
-     
-  console.log(users);
-
-    // for (let i = 0; i < userList.length; i++) {
-    //   await knex('users')
-    //     .where('users.id', userList[i].id)
-    //     .update({
-    //       'login_id': userList[i].login_id,
-    //       'ext': userList[i].ext
-    //     })      
-    // }
-
+    })
   } catch (error) {
     console.log(error);
   }
@@ -329,6 +320,3 @@ async function updateUser() {
 // console.log(getLogs());
 // console.log(getBets());
 console.log(updateUser());
-
-
-
