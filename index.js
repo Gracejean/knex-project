@@ -1,3 +1,5 @@
+const _pick = require('lodash/pick')
+
 const knex = require('knex')({
   client: 'mysql',
   connection: {
@@ -285,30 +287,58 @@ async function getBets() {
 async function updateUser() {
   try {
     const userList = [
-      { id: 1, login_id:'user_id_1', ext: 'php' },
-      { id: 2, login_id:'user_id_2', ext: 'asp' },
-      { id: 3, login_id:'user_id_3', ext: 'xml' },
-      { id: 4, login_id:'user_id_4', ext: 'php' },
-      { id: 6, login_id:'user_id_6', ext: 'asp'}
-    ]      
-    
-    await knex.transaction(async trx => {
-      const data = []
+      { id: 1, login_id: 'user_id_11', ext: 'php' },
+      { id: 2, login_id: 'user_id_21', ext: 'asp' },
+      { id: 3, login_id: 'user_id_31', ext: 'xml' },
+      { id: 4, login_id: 'user_id_41', ext: 'php' },
+      { id: 6, login_id: 'user_id_61', ext: 'asp' }
+    ]
 
-      userList.forEach(user => {
-        const query = knex('users')
-          .where('id', user.id)
-          .update({
-            'login_id': user.login_id,
-            'ext': user.ext
-          })
-          .transacting(trx)
-        data.push(query)
-      })
+    const ids = []
+
+    for (let i = 0; i < userList.length; i++) {
+      ids.push(userList[i].id)
+
       
-      await Promise.all(data)
+    }
 
-    })
+    console.log(ids);
+    //  await knex('users')
+    //      .where(function () {
+    //        for (let i = 0; i < userList.length; i++) {
+    //          this.where('id', userList[i].id)
+    //            .update({
+    //              login_id: userList[i].login_id,
+    //              ext: userList[i].ext
+    //          })         
+    //        }
+    //      })
+    const id = ids.map(i => `${i}`).join(', ')
+   
+    const val = ids.reduce((acc, curr) => [...acc, `${userList[curr].login_id}`], [])
+    console.log(val);
+    
+   const a = await knex('users')
+      .update({
+      login_id: knex.raw(`CASE WHEN id IN (${id})`)
+      })
+      .toSQL()
+    
+    
+    //  await knex('users')
+    //   .update({
+    //     login_id: knex.raw(`CASE WHEN id in picked.userList.id THEN 'picked.userList.log_id'ELSE login_id END`),
+    //     // ext: knex.raw(`CASE WHEN id = 1 THEN 'php' WHEN id = 2 THEN 'asp' WHEN id = 3 THEN 'xml' WHEN id = 4 THEN 'php' WHEN id = 6 THEN 'asp' ELSE ext END`)
+    //   })
+    
+    // await knex('users')
+    //   .update({
+    //     login_id: knex.raw(`CASE WHEN id = 1 THEN 'user_id_1' WHEN id = 2 THEN 'user_id_2' WHEN id = 3 THEN 'user_id_3' WHEN id = 4 THEN 'user_id_4' WHEN id = 6 THEN 'user_id_6' ELSE login_id END`),
+    //     ext: knex.raw(`CASE WHEN id = 1 THEN 'php' WHEN id = 2 THEN 'asp' WHEN id = 3 THEN 'xml' WHEN id = 4 THEN 'php' WHEN id = 6 THEN 'asp' ELSE ext END`)
+    //   })
+    
+    console.log(a);
+   
   } catch (error) {
     console.log(error);
   }
