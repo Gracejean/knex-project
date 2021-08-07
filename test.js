@@ -8,14 +8,6 @@ const knex = require('knex')({
   }
 });
 
-const jsonObject = data => {
-  const item = Object.keys(data)
-    .reduce((acc, current) => [...acc, `"${current}", ${data[current]}`], [])
-    .join(', ')
-  
-  return `JSON_OBJECT(${item})`
-}
-
 async function getWinAmount() {
   try {    
    await knex('stock_bets')
